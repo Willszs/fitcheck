@@ -12,12 +12,14 @@ ENV TZ=Asia/Shanghai
 RUN apt-get update && apt-get install -y tzdata && rm -rf /var/lib/apt/lists/*
 
 # 复制依赖清单并安装
-COPY requirements.txt .
+COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
+
+# 明确复制所有代码文件到 /app 根目录
+COPY . /app/
 
 # 暴露 Render 默认 Web 端口
 EXPOSE 8080
 
 # 启动 Bot & Web Service
-CMD ["python", "bot.py"]
-
+CMD ["python", "/app/bot.py"]
