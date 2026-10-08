@@ -20,3 +20,4 @@ COPY . .
 
 # 启动 Bot
 CMD ["python", "bot.py"]
+

@@ -1,62 +1,99 @@
-# FoodTrack AI - Telegram 个人健康 & 健身教练机器人
+# FitCheck - AI Nutritionist & Fitness Coach Telegram Bot
 
-这是一个基于 **Telegram Bot + Gemini AI 大模型** 的个人健康管理软件，帮你自动化解决**饮食打卡**、**健身记录**、**身材追踪**和**智能教练建议**。
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python: 3.12+](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://www.python.org/)
+[![Telegram Bot API](https://img.shields.io/badge/Telegram-Bot%20API-blue.svg)](https://core.telegram.org/bots)
+[![Powered by Gemini](https://img.shields.io/badge/AI-Google%20Gemini-orange.svg)](https://ai.google.dev/)
 
----
-
-## 🌟 核心特性与体验
-
-1. **🥗 饮食追踪（零繁琐输入）**
-   - **拍照识菜**：直接在 Telegram 发送食物照片，多模态 AI 自动识别盘中食物、估算分量并计算卡路里及三大营养素（碳水/蛋白/脂肪）。
-   - **自然语言记账**：打字输入（如 `中午吃了兰州牛肉面加了个煎蛋`），AI 自动提取营养数据并存储。
-2. **🏋️ 健身运动记录**
-   - 随手发训练笔记（如 `卧推70kg 4组8次，哑铃飞鸟15kg 3组`），AI 自动结构化解析动作、组数、负荷并估算消耗卡路里。
-3. **⚖️ 身材与体重追踪**
-   - 记录每日体重、腰围（如 `今早空腹 72.5kg`），自动归档趋势。
-4. **🧠 AI 私人健康教练**
-   - 输入 `/today` 或直接提问（如 `我今天还能吃夜宵吗？`），AI 综合你的摄入、训练与目标，给出个性化调整建议。
+**FitCheck** is an all-in-one AI-driven Personal Health and Fitness Coach built directly inside Telegram. Powered by Google Gemini multimodal intelligence, FitCheck turns Telegram into an effortless personal health logger and proactive fitness coach.
 
 ---
 
-## 🛠️ 项目结构
+## ✨ Key Features
+
+- 🥗 **Instant Meal Tracking via Photos & Natural Language**:
+  - Send food photos or type natural text (e.g., *"A bowl of beef noodles with an egg"*).
+  - Multimodal AI estimates portions (grams), calories, and macronutrients (protein, carbs, fat).
+  - Real-time inline meal adjustment commands (e.g., *"skipped the soup, subtract 150 kcal"*).
+  - One-click meal deletion & reversal directly in Telegram.
+- 🏋️ **Intelligent Workout & Progressive Overload Tracking**:
+  - Log workouts naturally (e.g., *"bench press 70kg 4 sets 8 reps"*).
+  - Automatically identifies muscle groups and tracks previous weights to encourage progressive overload.
+- 📐 **Scientific Metabolic Calculation (BMR & TDEE)**:
+  - Uses the **Mifflin-St Jeor Equation** based on gender, age, height, and weight.
+  - Dynamically computes baseline BMR, TDEE, BMI, and personalized daily caloric & protein targets.
+  - Recalculates metabolism dynamically whenever a new weigh-in is logged.
+- 💧 **Hydration & Sleep Recovery Logging**:
+  - Track water intake (e.g., *"drank 500ml water"*) and sleep duration (*"slept 8 hours"*).
+- 📈 **Weekly Macro Review (`/weekly`)**:
+  - Generates deep 7-day cyclical reviews covering caloric consistency, muscle group balance, and weight smoothing trends.
+- ⏰ **Proactive Evening Accountability Coach**:
+  - Automated evening checkup (APScheduler) at 20:30 scanning for missing workouts or severe caloric/protein deficits.
+
+---
+
+## 🏗️ Architecture
 
 ```
-Foodtrack/
-├── bot.py           # Telegram 机器人主程序（处理交互、指令与图片）
-├── ai_service.py    # AI 分析模块（意图识别、食物图像/文本解析、训练提取、教练建议）
-├── database.py      # SQLite 异步数据库（存储用户饮食、训练、身材数据）
-├── demo_sim.py      # 本地模拟测试脚本（无需连网即可验证完整链路）
-├── requirements.txt # 项目依赖
-├── .env.example     # 环境变量模板
-└── README.md
+FitCheck/
+├── bot.py             # Telegram Bot application & event dispatcher
+├── ai_service.py      # Google Gemini AI multimodal & NLP parsing engine
+├── database.py        # SQLite async engine with Mifflin-St Jeor metabolic math
+├── requirements.txt   # Python dependencies
+├── Dockerfile         # Production Docker container setup
+├── .dockerignore      # Docker build exclusion
+├── .gitignore         # Strict git ignore (prevents key & db leaks)
+└── README.md          # Documentation
 ```
 
 ---
 
-## 🚀 如何运行并连接到你的 Telegram？
+## 🚀 Quick Start (Local Setup)
 
-### 步骤 1：获取两个 Key（完全免费）
-1. **Telegram Bot Token**：
-   - 打开 Telegram，搜索并联系官方机器人 [@BotFather](https://t.me/BotFather)。
-   - 发送 `/newbot`，按照提示输入名字，即可拿到一串 Token（如 `123456789:ABCdefGhIJK...`）。
-2. **Gemini API Key**：
-   - 访问 [Google AI Studio](https://aistudio.google.com/) 点击 **Create API Key** 获取。
+### 1. Clone the repository
+```bash
+git clone https://github.com/zishuaishu-ctrl/fitcheck.git
+cd fitcheck
+```
 
-### 步骤 2：配置环境变量
-复制 `.env.example` 为 `.env`：
+### 2. Configure Environment Variables
+Create a `.env` file in the root directory:
 ```bash
 cp .env.example .env
 ```
-用编辑器打开 `.env` 并填入上面的两个密钥：
+Populate your API credentials inside `.env`:
 ```env
-TELEGRAM_BOT_TOKEN=你的_Telegram_Bot_Token
-GEMINI_API_KEY=你的_Gemini_API_Key
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
+GEMINI_API_KEY=your_gemini_api_key_here
 ```
+> - Get `TELEGRAM_BOT_TOKEN` for free from [@BotFather](https://t.me/BotFather) on Telegram.
+> - Get `GEMINI_API_KEY` for free from [Google AI Studio](https://aistudio.google.com/).
 
-### 步骤 3：启动机器人
+### 3. Run with Python
 ```bash
-# 激活虚拟环境并启动
-.venv/bin/python bot.py
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python bot.py
 ```
-终端显示 `🚀 Telegram Bot 已启动，正在等待消息...` 后，在 Telegram 里打开你的机器人点击 **Start** 即可体验！
 
+---
+
+## ☁️ Cloud Deployment (Render / Docker)
+
+FitCheck is containerized and ready for 24/7 cloud deployment.
+
+### Deploying on Render (Background Worker)
+1. Fork or push this repository to your GitHub account.
+2. Log in to [Render](https://render.com/) and click **New +** -> **Background Worker**.
+3. Connect your repository.
+4. Set **Runtime** to `Docker`.
+5. Under **Environment Variables**, add:
+   - `TELEGRAM_BOT_TOKEN` = `your_token`
+   - `GEMINI_API_KEY` = `your_key`
+6. Click **Create Background Worker**. Render will build the Docker container and keep your coach running 24/7!
+
+---
+
+## 📄 License
+This project is licensed under the [MIT License](LICENSE).
