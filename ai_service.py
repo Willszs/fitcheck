@@ -173,17 +173,26 @@ async def analyze_food_text(text: str) -> NutritionAnalysis:
         )
 
     prompt = f"请精确拆解以下饮食的食物组成、单项克数、热量(kcal)和三大宏量营养素(蛋白/碳水/脂肪)：\n{text}"
-    response = client.models.generate_content(
-        model='gemini-3.1-flash-lite',
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            response_schema=NutritionAnalysis,
-            system_instruction=SYSTEM_PROMPT,
-            temperature=0.2
-        )
-    )
-    return NutritionAnalysis.model_validate_json(response.text)
+    candidate_models = ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite', 'gemini-flash-latest']
+    
+    last_err = None
+    for model_name in candidate_models:
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=NutritionAnalysis,
+                    system_instruction=SYSTEM_PROMPT,
+                    temperature=0.2
+                )
+            )
+            return NutritionAnalysis.model_validate_json(response.text)
+        except Exception as e:
+            last_err = e
+            continue
+    raise last_err
 
 async def analyze_food_image(image_bytes: bytes, caption: Optional[str] = None) -> NutritionAnalysis:
     client = get_ai_client()
@@ -202,17 +211,26 @@ async def analyze_food_image(image_bytes: bytes, caption: Optional[str] = None) 
         prompt += f"\n用户补充说明: {caption}"
 
     image_part = types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg")
-    response = client.models.generate_content(
-        model='gemini-3.1-flash-lite',
-        contents=[image_part, prompt],
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            response_schema=NutritionAnalysis,
-            system_instruction=SYSTEM_PROMPT,
-            temperature=0.2
-        )
-    )
-    return NutritionAnalysis.model_validate_json(response.text)
+    candidate_models = ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite', 'gemini-flash-latest']
+
+    last_err = None
+    for model_name in candidate_models:
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=[image_part, prompt],
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=NutritionAnalysis,
+                    system_instruction=SYSTEM_PROMPT,
+                    temperature=0.2
+                )
+            )
+            return NutritionAnalysis.model_validate_json(response.text)
+        except Exception as e:
+            last_err = e
+            continue
+    raise last_err
 
 async def analyze_workout_text(text: str) -> WorkoutAnalysis:
     client = get_ai_client()
