@@ -15,9 +15,9 @@ RUN apt-get update && apt-get install -y tzdata && rm -rf /var/lib/apt/lists/*
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 复制项目代码
-COPY . .
+# 暴露 Render 默认 Web 端口
+EXPOSE 8080
 
-# 启动 Bot
+# 启动 Bot & Web Service
 CMD ["python", "bot.py"]
 

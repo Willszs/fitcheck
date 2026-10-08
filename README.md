@@ -83,15 +83,18 @@ python bot.py
 
 FitCheck is containerized and ready for 24/7 cloud deployment.
 
-### Deploying on Render (Background Worker)
+### Deploying on Render (100% Free Web Service)
 1. Fork or push this repository to your GitHub account.
-2. Log in to [Render](https://render.com/) and click **New +** -> **Background Worker**.
+2. Log in to [Render](https://render.com/) and click **New +** -> **Web Service** (Free tier supported).
 3. Connect your repository.
-4. Set **Runtime** to `Docker`.
-5. Under **Environment Variables**, add:
+4. Set **Runtime** to `Docker` (or select the repository's Dockerfile).
+5. Choose the **Free** instance type.
+6. Under **Environment Variables**, add:
    - `TELEGRAM_BOT_TOKEN` = `your_token`
    - `GEMINI_API_KEY` = `your_key`
-6. Click **Create Background Worker**. Render will build the Docker container and keep your coach running 24/7!
+   - `PORT` = `8080`
+7. Click **Deploy Web Service**.
+8. *(Optional Keep-Alive)*: Copy your Render public URL (e.g., `https://fitcheck-xxxx.onrender.com/health`) and add it to a free ping monitor like [UptimeRobot](https://uptimerobot.com/) or [cron-job.org](https://cron-job.org/) to prevent the free instance from sleeping.
 
 ---
 

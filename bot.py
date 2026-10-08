@@ -475,10 +475,28 @@ async def evening_checkup_job(context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             logging.error(f"发送晚间提醒失败 uid {uid}: {e}")
 
-def main():
+from aiohttp import web
+
+async def health_check(request):
+    return web.Response(text="OK - FitCheck Bot is running healthy and active!", content_type="text/plain")
+
+async def run_web_server():
+    port = int(os.environ.get("PORT", 8080))
+    app = web.Application()
+    app.router.add_get("/", health_check)
+    app.router.add_get("/health", health_check)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
+    logging.info(f"🌐 Health-check Web Service listening on port {port} (Render Free Tier Ready)")
+
+async def main_async():
     token = os.environ.get("TELEGRAM_BOT_TOKEN")
-    import asyncio
-    asyncio.run(init_db())
+    await init_db()
+
+    # 启动健康检查 Web 服务，兼容 Render 免费 Web Service
+    await run_web_server()
 
     app = ApplicationBuilder().token(token).build()
     app.add_handler(CommandHandler("start", start))
@@ -488,7 +506,6 @@ def main():
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_text))
 
-    # 每天 20:30 执行晚间督促
     job_queue = app.job_queue
     if job_queue:
         job_queue.run_daily(
@@ -496,8 +513,19 @@ def main():
             time=time(hour=20, minute=30, tzinfo=ZoneInfo("Asia/Shanghai"))
         )
 
-    print("🚀 全能终极版 Telegram AI 健身教练已启动！")
-    app.run_polling()
+    print("🚀 FitCheck Telegram Bot & Web Service 已双模启动！")
+    await app.initialize()
+    await app.start()
+    await app.updater.start_polling()
+
+    # 保持长久运行
+    import asyncio
+    while True:
+        await asyncio.sleep(3600)
+
+def main():
+    import asyncio
+    asyncio.run(main_async())
 
 if __name__ == "__main__":
     main()
