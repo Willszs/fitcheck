@@ -380,3 +380,41 @@ async def generate_weekly_report_summary(weekly_data: dict) -> str:
         )
     )
     return response.text
+
+async def generate_meal_reminder(meal_type: str, summary: dict) -> str:
+    """根据餐别（早/午/晚/加餐）与当前已吃数据，由 AI 生成懂你的个性化点餐/吃餐建议"""
+    client = get_ai_client()
+    user = summary["user"]
+    totals = summary["totals"]
+    rem = summary["remaining"]
+    goal = user.get("goal", "增肌")
+    
+    prompt = f"""
+用户档案：目标={goal}，每日热量预算={user['target_calories']} kcal，目标蛋白={user['target_protein']} g。
+当前时间点餐别：【{meal_type}】
+今天截至目前已摄入：{totals['calories']} kcal (还剩预算 {rem['calories']} kcal)，已摄入蛋白质 {totals['protein']} g (还差 {rem['protein']} g)。
+
+请扮演顶级贴身私人营养教练，给用户发一条【{meal_type}】就餐提醒与点单/做饭建议：
+1. 亲切提醒他该吃【{meal_type}】了，别忘了拍食物照片或打字发给机器人记录。
+2. 结合他今天还剩的热量和蛋白质预算（特别是增肌需要充足热量和优质蛋白质），给出一套具体的、容易买到或烹饪的食物组合建议（如主食选什么、蛋白质选什么、蔬菜选什么）。
+3. 如果是早餐提醒补充水分；如果是午餐提醒吃饱；如果是晚餐提醒碳水和脂肪控制；如果是夜宵/加餐提醒睡前慢消化蛋白（酪蛋白/水煮蛋/希腊酸奶）。
+字数在 150 字以内，精炼、富有动力，善用 emoji。
+"""
+    if not client:
+        return f"⏰ 该吃{meal_type}啦！今天还需摄入约 {rem['calories']} kcal 热量和 {rem['protein']}g 蛋白质，吃完记得拍照发给我记录哦！"
+
+    candidate_models = ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite', 'gemini-flash-latest']
+    for model_name in candidate_models:
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=SYSTEM_PROMPT,
+                    temperature=0.3
+                )
+            )
+            return response.text
+        except Exception:
+            continue
+    return f"⏰ 该吃{meal_type}啦！今天还剩 {rem['calories']} kcal 预算，记得吃完拍照发我哦！"

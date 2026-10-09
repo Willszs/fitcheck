@@ -447,9 +447,33 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply = await ai_service.generate_integrated_feedback(summary, trigger_type="status_query", item_detail=text)
         await safe_reply(update, reply)
 
-# ================= 晚间主动提醒教练调度机制 =================
+# ================= 主动饮食与教练督促调度机制 =================
+async def send_meal_reminder_to_all(context: ContextTypes.DEFAULT_TYPE, meal_type: str):
+    """向所有用户推送个性化定点就餐提醒"""
+    user_ids = await get_all_user_ids()
+    for uid in user_ids:
+        try:
+            summary = await get_today_summary(uid)
+            reminder_text = await ai_service.generate_meal_reminder(meal_type, summary)
+            await context.bot.send_message(
+                chat_id=uid,
+                text=reminder_text,
+                reply_markup=REPLY_MARKUP
+            )
+        except Exception as e:
+            logging.error(f"发送【{meal_type}】提醒失败 uid {uid}: {e}")
+
+async def breakfast_reminder_job(context: ContextTypes.DEFAULT_TYPE):
+    await send_meal_reminder_to_all(context, "早餐")
+
+async def lunch_reminder_job(context: ContextTypes.DEFAULT_TYPE):
+    await send_meal_reminder_to_all(context, "午餐")
+
+async def dinner_reminder_job(context: ContextTypes.DEFAULT_TYPE):
+    await send_meal_reminder_to_all(context, "晚餐")
+
 async def evening_checkup_job(context: ContextTypes.DEFAULT_TYPE):
-    """每天晚上 20:30 自动执行：主动扫描用户今日打卡，未完成则督促！"""
+    """每天晚上 21:00 自动执行：主动扫描用户今日打卡，未完成则督促！"""
     user_ids = await get_all_user_ids()
     for uid in user_ids:
         try:
@@ -461,17 +485,17 @@ async def evening_checkup_job(context: ContextTypes.DEFAULT_TYPE):
 
             alerts = []
             if not workouts:
-                alerts.append("🏋️ **你今天还没有记录运动！** 晚点要不要抽20分钟练一练？")
-            if rem["calories"] > 600:
-                alerts.append(f"🥩 **今天的增肌/能量目标还差 {rem['calories']:.0f} kcal**，蛋白质还差 {rem['protein']:.1f}g，睡前记得补餐！")
+                alerts.append("🏋️ **你今天还没有记录运动！** 晚上抽空做一组或练一组核心拉伸吗？")
+            if rem["calories"] > 500:
+                alerts.append(f"🥩 **今天的增肌/能量目标还差 {rem['calories']:.0f} kcal**，蛋白质还差 {rem['protein']:.1f}g，睡前建议补充一杯蛋白粉或两颗鸡蛋！")
 
             if alerts:
                 text = (
                     f"⏰ **来自私人教练的晚间例行查房**：\n\n"
                     + "\n\n".join(alerts) +
-                    f"\n\n点击 `[📊 今日总览与建议]` 可查看当前全天战报。加油！"
+                    f"\n\n点击 `[📊 今日总览与建议]` 可查看当前全天战报。早点休息，明天继续冲！💪"
                 )
-                await context.bot.send_message(chat_id=uid, text=text, parse_mode="Markdown")
+                await context.bot.send_message(chat_id=uid, text=text, parse_mode="Markdown", reply_markup=REPLY_MARKUP)
         except Exception as e:
             logging.error(f"发送晚间提醒失败 uid {uid}: {e}")
 
@@ -506,14 +530,20 @@ async def main_async():
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_text))
 
+    # 配置每日固定就餐与督促定时调度（支持北京时间 Asia/Shanghai）
     job_queue = app.job_queue
     if job_queue:
-        job_queue.run_daily(
-            evening_checkup_job,
-            time=time(hour=20, minute=30, tzinfo=ZoneInfo("Asia/Shanghai"))
-        )
+        shanghai_tz = ZoneInfo("Asia/Shanghai")
+        # 1. 早餐提醒 (08:30)
+        job_queue.run_daily(breakfast_reminder_job, time=time(hour=8, minute=30, tzinfo=shanghai_tz))
+        # 2. 午餐提醒 (12:00)
+        job_queue.run_daily(lunch_reminder_job, time=time(hour=12, minute=0, tzinfo=shanghai_tz))
+        # 3. 晚餐提醒 (18:30)
+        job_queue.run_daily(dinner_reminder_job, time=time(hour=18, minute=30, tzinfo=shanghai_tz))
+        # 4. 晚间查房督促 (21:00)
+        job_queue.run_daily(evening_checkup_job, time=time(hour=21, minute=0, tzinfo=shanghai_tz))
 
-    print("🚀 FitCheck Telegram Bot & Web Service 已双模启动！")
+    print("🚀 FitCheck Telegram Bot & 饮食主动提醒已全面启动！")
     await app.initialize()
     await app.start()
     await app.updater.start_polling()
