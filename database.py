@@ -1,8 +1,16 @@
 import aiosqlite
 import os
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "foodtrack.db")
+BERLIN_TZ = ZoneInfo("Europe/Berlin")
+
+def get_berlin_now() -> datetime:
+    return datetime.now(BERLIN_TZ)
+
+def get_berlin_today_str() -> str:
+    return get_berlin_now().strftime("%Y-%m-%d")
 
 def calculate_metabolism(gender: str, age: int, height: float, weight: float, goal: str = "增肌", activity_factor: float = 1.375):
     is_female = "女" in gender or gender.lower() in ["female", "f", "woman"]
@@ -122,11 +130,12 @@ async def get_or_create_user(user_id: int, username: str = ""):
             row = await cursor.fetchone()
             if row:
                 return dict(row)
+        now_str = get_berlin_now().strftime("%Y-%m-%d %H:%M:%S")
         await db.execute(
             """INSERT INTO users 
-               (user_id, username, gender, age, height, target_calories, target_protein, target_carbs, target_fat, goal, bmr, tdee) 
-               VALUES (?, ?, '男', 25, 175, 2480, 140, 260, 60, '增肌', 1700, 2300)""",
-            (user_id, username)
+               (user_id, username, gender, age, height, target_calories, target_protein, target_carbs, target_fat, goal, bmr, tdee, created_at) 
+               VALUES (?, ?, '男', 25, 175, 2480, 140, 260, 60, '增肌', 1700, 2300, ?)""",
+            (user_id, username, now_str)
         )
         await db.commit()
         async with db.execute("SELECT * FROM users WHERE user_id = ?", (user_id,)) as cursor:
@@ -147,18 +156,20 @@ async def update_user_profile(user_id: int, gender: str, age: int, height: float
             stats["target_calories"], stats["target_protein"], stats["target_carbs"], stats["target_fat"],
             user_id
         ))
+        now_str = get_berlin_now().strftime("%Y-%m-%d %H:%M:%S")
         await db.execute(
-            "INSERT INTO body_metrics (user_id, weight, notes) VALUES (?, ?, '档案初始化体重')",
-            (user_id, weight)
+            "INSERT INTO body_metrics (user_id, weight, notes, created_at) VALUES (?, ?, '档案初始化体重', ?)",
+            (user_id, weight, now_str)
         )
         await db.commit()
     return stats
 
 async def add_meal(user_id: int, food_name: str, calories: float, protein: float, carbs: float, fat: float, raw_input: str) -> int:
+    now_str = get_berlin_now().strftime("%Y-%m-%d %H:%M:%S")
     async with aiosqlite.connect(DB_PATH) as db:
         cursor = await db.execute(
-            "INSERT INTO meals (user_id, food_name, calories, protein, carbs, fat, raw_input) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (user_id, food_name, calories, protein, carbs, fat, raw_input)
+            "INSERT INTO meals (user_id, food_name, calories, protein, carbs, fat, raw_input, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (user_id, food_name, calories, protein, carbs, fat, raw_input, now_str)
         )
         await db.commit()
         return cursor.lastrowid
@@ -190,16 +201,17 @@ async def get_recent_meals(user_id: int, limit: int = 5):
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
-            "SELECT id, food_name, calories, protein, carbs, fat, time(created_at, 'localtime') as meal_time, date(created_at, 'localtime') as meal_date FROM meals WHERE user_id = ? ORDER BY id DESC LIMIT ?",
+            "SELECT id, food_name, calories, protein, carbs, fat, time(created_at) as meal_time, date(created_at) as meal_date FROM meals WHERE user_id = ? ORDER BY id DESC LIMIT ?",
             (user_id, limit)
         ) as cursor:
             return [dict(r) for r in await cursor.fetchall()]
 
 async def add_workout(user_id: int, exercise_name: str, muscle_group: str, sets: int, reps: int, weight: float, calories_burned: float, raw_input: str):
+    now_str = get_berlin_now().strftime("%Y-%m-%d %H:%M:%S")
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
-            "INSERT INTO workouts (user_id, exercise_name, muscle_group, sets, reps, weight, calories_burned, raw_input) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (user_id, exercise_name, muscle_group, sets, reps, weight, calories_burned, raw_input)
+            "INSERT INTO workouts (user_id, exercise_name, muscle_group, sets, reps, weight, calories_burned, raw_input, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (user_id, exercise_name, muscle_group, sets, reps, weight, calories_burned, raw_input, now_str)
         )
         await db.commit()
 
@@ -209,7 +221,7 @@ async def get_previous_exercise_record(user_id: int, exercise_name: str):
         db.row_factory = aiosqlite.Row
         # 模糊匹配动作关键词
         async with db.execute(
-            """SELECT exercise_name, weight, sets, reps, date(created_at, 'localtime') as day 
+            """SELECT exercise_name, weight, sets, reps, date(created_at) as day 
                FROM workouts 
                WHERE user_id = ? AND (exercise_name LIKE ? OR ? LIKE '%' || exercise_name || '%')
                ORDER BY id DESC LIMIT 1 OFFSET 1""",
@@ -219,10 +231,11 @@ async def get_previous_exercise_record(user_id: int, exercise_name: str):
             return dict(row) if row else None
 
 async def add_body_metric(user_id: int, weight: float, waist: float = None, notes: str = None):
+    now_str = get_berlin_now().strftime("%Y-%m-%d %H:%M:%S")
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
-            "INSERT INTO body_metrics (user_id, weight, waist, notes) VALUES (?, ?, ?, ?)",
-            (user_id, weight, waist, notes)
+            "INSERT INTO body_metrics (user_id, weight, waist, notes, created_at) VALUES (?, ?, ?, ?, ?)",
+            (user_id, weight, waist, notes, now_str)
         )
         db.row_factory = aiosqlite.Row
         async with db.execute("SELECT * FROM users WHERE user_id = ?", (user_id,)) as cursor:
@@ -244,7 +257,7 @@ async def add_body_metric(user_id: int, weight: float, waist: float = None, note
 
 async def record_habit(user_id: int, water_ml: float = None, sleep_hours: float = None):
     """记录喝水或睡眠"""
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = get_berlin_today_str()
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute("SELECT * FROM daily_habits WHERE user_id = ? AND day = ?", (user_id, today)) as cursor:
@@ -265,31 +278,31 @@ async def record_habit(user_id: int, water_ml: float = None, sleep_hours: float 
         await db.commit()
 
 async def get_today_summary(user_id: int):
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = get_berlin_today_str()
     user = await get_or_create_user(user_id)
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
-            "SELECT id, food_name, calories, protein, carbs, fat FROM meals WHERE user_id = ? AND date(created_at, 'localtime') = ? ORDER BY id DESC",
+            "SELECT id, food_name, calories, protein, carbs, fat FROM meals WHERE user_id = ? AND date(created_at) = ? ORDER BY id DESC",
             (user_id, today)
         ) as cursor:
             meals = [dict(r) for r in await cursor.fetchall()]
 
         async with db.execute(
-            "SELECT exercise_name, muscle_group, sets, reps, weight, calories_burned FROM workouts WHERE user_id = ? AND date(created_at, 'localtime') = ?",
+            "SELECT exercise_name, muscle_group, sets, reps, weight, calories_burned FROM workouts WHERE user_id = ? AND date(created_at) = ?",
             (user_id, today)
         ) as cursor:
             workouts = [dict(r) for r in await cursor.fetchall()]
 
-        week_ago = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+        week_ago = (get_berlin_now() - timedelta(days=7)).strftime("%Y-%m-%d")
         async with db.execute(
-            "SELECT exercise_name, muscle_group, date(created_at, 'localtime') as day FROM workouts WHERE user_id = ? AND date(created_at, 'localtime') >= ? ORDER BY id DESC",
+            "SELECT exercise_name, muscle_group, date(created_at) as day FROM workouts WHERE user_id = ? AND date(created_at) >= ? ORDER BY id DESC",
             (user_id, week_ago)
         ) as cursor:
             recent_workouts = [dict(r) for r in await cursor.fetchall()]
 
         async with db.execute(
-            "SELECT weight, waist, date(created_at, 'localtime') as day FROM body_metrics WHERE user_id = ? ORDER BY id DESC LIMIT 2",
+            "SELECT weight, waist, date(created_at) as day FROM body_metrics WHERE user_id = ? ORDER BY id DESC LIMIT 2",
             (user_id,)
         ) as cursor:
             body_records = [dict(r) for r in await cursor.fetchall()]
@@ -339,17 +352,17 @@ async def get_today_summary(user_id: int):
 async def get_weekly_report_data(user_id: int):
     """获取过去7天的宏观统计数据（平均摄入、训练分布、体重平滑）"""
     user = await get_or_create_user(user_id)
-    week_ago = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+    week_ago = (get_berlin_now() - timedelta(days=7)).strftime("%Y-%m-%d")
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
 
         # 每日摄入聚合
         async with db.execute(
-            """SELECT date(created_at, 'localtime') as day, 
+            """SELECT date(created_at) as day, 
                       SUM(calories) as total_cal, SUM(protein) as total_p 
                FROM meals 
-               WHERE user_id = ? AND date(created_at, 'localtime') >= ?
-               GROUP BY date(created_at, 'localtime')""",
+               WHERE user_id = ? AND date(created_at) >= ?
+               GROUP BY date(created_at)""",
             (user_id, week_ago)
         ) as cursor:
             daily_intakes = [dict(r) for r in await cursor.fetchall()]
@@ -358,7 +371,7 @@ async def get_weekly_report_data(user_id: int):
         async with db.execute(
             """SELECT muscle_group, COUNT(*) as count 
                FROM workouts 
-               WHERE user_id = ? AND date(created_at, 'localtime') >= ?
+               WHERE user_id = ? AND date(created_at) >= ?
                GROUP BY muscle_group""",
             (user_id, week_ago)
         ) as cursor:
@@ -366,9 +379,9 @@ async def get_weekly_report_data(user_id: int):
 
         # 过去7天的体重记录
         async with db.execute(
-            """SELECT weight, date(created_at, 'localtime') as day 
+            """SELECT weight, date(created_at) as day 
                FROM body_metrics 
-               WHERE user_id = ? AND date(created_at, 'localtime') >= ?
+               WHERE user_id = ? AND date(created_at) >= ?
                ORDER BY id ASC""",
             (user_id, week_ago)
         ) as cursor:

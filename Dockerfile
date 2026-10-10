@@ -6,7 +6,7 @@ WORKDIR /app
 # 设置环境变量，防止 python 生成 pyc 缓存以及实时输出日志
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-ENV TZ=Asia/Shanghai
+ENV TZ=Europe/Berlin
 
 # 安装系统时区依赖
 RUN apt-get update && apt-get install -y tzdata && rm -rf /var/lib/apt/lists/*

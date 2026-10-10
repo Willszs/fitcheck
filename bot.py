@@ -530,18 +530,18 @@ async def main_async():
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_text))
 
-    # 配置每日固定就餐与督促定时调度（支持北京时间 Asia/Shanghai）
+    # 配置每日固定就餐与督促定时调度（支持欧洲柏林时间 Europe/Berlin）
     job_queue = app.job_queue
     if job_queue:
-        shanghai_tz = ZoneInfo("Asia/Shanghai")
+        berlin_tz = ZoneInfo("Europe/Berlin")
         # 1. 早餐提醒 (08:30)
-        job_queue.run_daily(breakfast_reminder_job, time=time(hour=8, minute=30, tzinfo=shanghai_tz))
+        job_queue.run_daily(breakfast_reminder_job, time=time(hour=8, minute=30, tzinfo=berlin_tz))
         # 2. 午餐提醒 (12:00)
-        job_queue.run_daily(lunch_reminder_job, time=time(hour=12, minute=0, tzinfo=shanghai_tz))
+        job_queue.run_daily(lunch_reminder_job, time=time(hour=12, minute=0, tzinfo=berlin_tz))
         # 3. 晚餐提醒 (18:30)
-        job_queue.run_daily(dinner_reminder_job, time=time(hour=18, minute=30, tzinfo=shanghai_tz))
+        job_queue.run_daily(dinner_reminder_job, time=time(hour=18, minute=30, tzinfo=berlin_tz))
         # 4. 晚间查房督促 (21:00)
-        job_queue.run_daily(evening_checkup_job, time=time(hour=21, minute=0, tzinfo=shanghai_tz))
+        job_queue.run_daily(evening_checkup_job, time=time(hour=21, minute=0, tzinfo=berlin_tz))
 
     print("🚀 FitCheck Telegram Bot & 饮食主动提醒已全面启动！")
     await app.initialize()
